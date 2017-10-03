@@ -2,7 +2,7 @@
 Implementation of a rapidly expanding random trees algorithm for ROS (Robot Operating System).
 
 ## Prerequisites
-You need to have installed [ROS - Robot Operating System](http://www.ros.org/) in yur system.
+You need to have installed [ROS - Robot Operating System](http://www.ros.org/) in your system.
 
 ## Running and visualization
 Clone the rrt-ros repository in to your preferable location. Then compile it using catkin as follows.
