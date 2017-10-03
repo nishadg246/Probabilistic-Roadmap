@@ -20,7 +20,7 @@ bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point);
 geometry_msgs::Point tempP;
 Node init, goal;
 static RRT rrt = initRRT();
-static float goal_bias = 0.5;
+static float goal_bias = 0.3;
 static float sigma = 0.5;
 static bool success = false;
 
