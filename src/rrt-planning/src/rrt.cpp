@@ -8,27 +8,27 @@
 #include "rrtImpl.h"
 
 RRT initRRT();
-Node runRRT(ros::Publisher, int);
-void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher, bool);
-void populateRviz(ros::Publisher marker_pub);
-void populateObstacles(ros::Publisher marker_pub) ;
 
-void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub) ;
+Node runRRT(ros::Publisher, int);
+
+void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher, bool);
+
+void populateRviz(ros::Publisher marker_pub);
+
+void populateObstacles(ros::Publisher marker_pub);
+
+void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub);
 
 bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point);
 
-geometry_msgs::Point tempP;
 Node init, goal;
 static RRT rrt = initRRT();
-static float goal_bias = 0.3;
+static float goal_bias = 0.5;
 static float sigma = 0.5;
 static bool success = false;
 
 static int init_x = 0;
 static int init_y = 0;
-
-//static int goal_x = 5;
-//static int goal_y = 5;
 
 static int goal_x = 18;
 static int goal_y = 18;
@@ -49,53 +49,50 @@ int main(int argc, char **argv) {
         ROS_INFO("Frame: %d", frame_count);
         populateRviz(marker_pub);
 
-        if(!success) {
+        if (!success) {
             Node next_node = runRRT(marker_pub, frame_count);
-                geometry_msgs::Point next_point = next_node.point;
+            geometry_msgs::Point next_point = next_node.point;
 
-                if ((rrt.getEuclideanDistance(next_point, goal.point) <= 1) && frame_count > 2) {
-                    addEdge(next_point, goal.point, marker_pub, false);
-                    goal.parent = &next_node;
-                    next_node.children.push_back(goal);
-                    goal.parentId = next_node.id;
-                    success = true;
-                }
+            if ((rrt.getEuclideanDistance(next_point, goal.point) <= 1) && frame_count > 2) {
+                addEdge(next_point, goal.point, marker_pub, false);
+                next_node.children.push_back(goal);
+                goal.parentId = next_node.id;
+                success = true;
+            }
         }
 
-        if(success) {
+        if (success) {
             std::vector<Node> pathNodes;
             std::vector<Node> allNodes = rrt.getNodesList();
 
-//            std::vector<Node>::iterator it = pathNodes.begin();
             pathNodes.push_back(goal);
             int tempParentId = goal.parentId;
             while (tempParentId != init.parentId) {
-                for (int i = allNodes.size()-1; i >= 0; i--) {
+                for (int i = allNodes.size() - 1; i >= 0; i--) {
                     Node tempNode = allNodes[i];
                     if ((tempNode.id) == tempParentId) {
                         pathNodes.push_back(tempNode);
-//                        it = pathNodes.begin();
                         tempParentId = tempNode.parentId;
                     }
                 }
             }
 
-            std::cout<<"\n\nPath retrieved!! \n\n";
+            std::cout << "\n\nPath retrieved!! \n\n";
 
             Node next;
             Node curr;
-            for(int i=pathNodes.size()-2;i>=0;i--) {
+            for (int i = pathNodes.size() - 2; i >= 0; i--) {
                 curr = pathNodes[i];
-                next = pathNodes[i+1];
-                drawFinalPath(curr.point,next.point, marker_pub);
+                next = pathNodes[i + 1];
+                drawFinalPath(curr.point, next.point, marker_pub);
             }
 
-            if(!pn_index_initialized) {
+            if (!pn_index_initialized) {
                 path_node_index = pathNodes.size();
                 pn_index_initialized = true;
             }
             bool isMoved = false;
-            if(frame_count%3 == 0) {
+            if (frame_count % 3 == 0) {
                 geometry_msgs::Point next_pose = pathNodes[--path_node_index].point;
 
                 isMoved = moveRobot(marker_pub, next_pose);
@@ -103,7 +100,6 @@ int main(int argc, char **argv) {
             if (isMoved) {
                 return 0;
             }
-//            return 0;
         }
 
         while (marker_pub.getNumSubscribers() < 1) {
@@ -129,7 +125,7 @@ bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point next_pose) {
     rob.type = visualization_msgs::Marker::CUBE;
 
 
-    rob.header.frame_id = "map";  //NOTE: this should be "paired" to the frame_id entry in Rviz
+    rob.header.frame_id = "map";
     rob.header.stamp = ros::Time::now();
     rob.ns = "rob";
     rob.id = 0;
@@ -146,15 +142,15 @@ bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point next_pose) {
     rob.color.b = 0.5f;
     rob.color.a = 1.0;
 
-    //calculate m
-    float m = (next_pose.y - rob.pose.position.y)/(next_pose.x - rob.pose.position.x);
+    //calculate m to change the orientation of the robot
+    float m = (next_pose.y - rob.pose.position.y) / (next_pose.x - rob.pose.position.x);
 
-    rob.pose.orientation.z = atan(m) + M_PI/2;
+    rob.pose.orientation.z = atan(m) + M_PI / 2;
     rob.pose.position = next_pose;
 
     marker_pub.publish(rob);
 
-    if((rob.pose.position.x == goal.point.x) && (rob.pose.position.y == goal.point.y)) {
+    if ((rob.pose.position.x == goal.point.x) && (rob.pose.position.y == goal.point.y)) {
         marker_pub.publish(rob);
         return true;
     }
@@ -178,13 +174,14 @@ RRT initRRT() {
 Node runRRT(ros::Publisher marker_pub, int frameid) {
     geometry_msgs::Point rand_point = rrt.getRandomConfig();
     geometry_msgs::Point tempP;
-    tempP.x = 0; tempP.y = 0;
+    tempP.x = 0;
+    tempP.y = 0;
     Node rand_node(tempP);
     Node next_node(tempP);
     Node nearest_node = rrt.getNearestNode(rand_point);
 
     //decide whether to extend toward the goal or a random point
-    double r = rand() / (double)RAND_MAX;
+    double r = rand() / (double) RAND_MAX;
     if (r < goal_bias) {
         next_node = rrt.expand(nearest_node, goal, obsVec, frameid);
     } else {
@@ -192,8 +189,9 @@ Node runRRT(ros::Publisher marker_pub, int frameid) {
         next_node = rrt.expand(nearest_node, rand_node, obsVec, frameid);
     }
 
-    if((next_node.point.x != nearest_node.point.x) && (next_node.point.y != nearest_node.point.y)) {
-        std::cout << "Rand_config: \n" << rand_point << "nearest_node: \n"<<nearest_node.point<< "next_node: \n"<<(next_node).point<<"\n\n";
+    if ((next_node.point.x != nearest_node.point.x) && (next_node.point.y != nearest_node.point.y)) {
+        std::cout << "Rand_config: \n" << rand_point << "nearest_node: \n" << nearest_node.point << "next_node: \n"
+                  << (next_node).point << "\n\n";
         addEdge(nearest_node.point, (next_node).point, marker_pub, false);
     }
     return next_node;
@@ -234,8 +232,7 @@ void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher ma
     edge.scale.x = 0.02;
     if (!isFinal) {
         edge.color.r = 1.0;
-    }
-    else {
+    } else {
         edge.color.g = edge.color.r = 1;
     }
     edge.color.a = 1.0;
@@ -286,7 +283,7 @@ void populateObstacles(ros::Publisher marker_pub) {
     obs1.type = obs2.type = obs3.type = obs4.type = obs5.type = obs6.type = visualization_msgs::Marker::CUBE;
     obs1.header.frame_id = obs2.header.frame_id = obs3.header.frame_id = obs4.header.frame_id = obs5.header.frame_id = obs6.header.frame_id = "map";
     obs1.header.stamp = obs2.header.stamp = obs3.header.stamp = obs4.header.stamp = obs5.header.stamp = obs6.header.stamp = ros::Time::now();
-    obs1.ns = obs2.ns = obs3.ns = obs4.ns = obs5.ns = obs6.ns  = "obstacles";
+    obs1.ns = obs2.ns = obs3.ns = obs4.ns = obs5.ns = obs6.ns = "obstacles";
     obs1.lifetime = obs2.lifetime = obs3.lifetime = obs4.lifetime = obs5.lifetime = obs6.lifetime = ros::Duration();
     obs1.action = obs2.action = obs3.action = obs4.action = obs5.action = obs6.action = visualization_msgs::Marker::ADD;
 
@@ -383,5 +380,4 @@ void populateObstacles(ros::Publisher marker_pub) {
     obsVec.push_back(obs4);
     obsVec.push_back(obs5);
     obsVec.push_back(obs6);
-
 }
