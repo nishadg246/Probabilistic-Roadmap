@@ -22,8 +22,7 @@ public:
 
     int id;
     geometry_msgs::Point point;
-    std::vector<Node> children;
-    int parentId;
+    std::vector<Node> neighbors;
 };
 
 class RRT {
@@ -34,97 +33,51 @@ public:
                                                                                          y_min(y_min) {
         nodesList.reserve(1000);
         nodesList.push_back(init);
+        nodeMap[init.id] = init;
+        nodesList.push_back(goal);
+        nodeMap[goal.id] = goal;
     }
 
-    geometry_msgs::Point getRandomConfig() {
-        geometry_msgs::Point point;
+    void generateRandomPoints(std::vector<visualization_msgs::Marker> obsVec) {
+        int total = 0;
+        while(total < 30)
+        {
+            geometry_msgs::Point point;
 
-        std::random_device rand_dev;
-        std::mt19937 generator(rand_dev());
-        std::uniform_int_distribution<int> distr(x_min, x_max);
+            std::random_device rand_dev;
+            std::mt19937 generator(rand_dev());
+            std::uniform_int_distribution<int> distr(x_min, x_max);
 
-        point.x = distr(generator);
-        point.y = distr(generator);
-        //todo: check for collisions.
-        return point;
-    }
+            Node p;
+            p.point.y = distr(generator);
+            p.point.x = distr(generator);
+            p.point.z = 0;
+            p.id = total;
 
-    std::map<float, Node> distance_map;
-
-    Node getNearestNode(geometry_msgs::Point p) {
-        int n_nodes = nodesList.size();
-        if (n_nodes == 1) {
-            return (nodesList[0]);
+            if (!intersectsObs(p.point, p.point, obsVec) && isWithinWorld(p.point)) {
+                nodesList.push_back(p);
+                nodeMap[p.id] = p;
+                total++;
+            }
         }
-        distance_map.clear();
-
-        for (int i = 0; i < n_nodes; i++) {
-            Node treeNode = nodesList[i];
-            float d = getEuclideanDistance(p, treeNode.point);
-            distance_map[d] = treeNode;
-        }
-
-        return distance_map.begin()->second;
     }
 
-    /**
-     *
-     * @param p1
-     * @param p2
-     * @return euclidean distance between p1 and p2
-     */
+    void computeNeighborGraph(std::vector<visualization_msgs::Marker> obsVec) {
+        // decide whether to extend toward the goal or a random point
+        ROS_INFO("Size: %d", (int)nodesList.size());
+        for (Node& i: nodesList)
+        {
+            for (Node& j: nodesList)
+            {
+                if (!intersectsObs(i.point, j.point, obsVec)) {
+                    i.neighbors.push_back(j);
+                }
+            }
+        }
+    }
+
     float getEuclideanDistance(geometry_msgs::Point p1, geometry_msgs::Point p2) {
         return std::sqrt(std::pow((p1.x - p2.x), 2) + std::pow((p1.y - p2.y), 2));
-    }
-
-    /**
-     *
-     * @param p1 nearest point
-     * @param p2 random config
-     * @return point P which is in sigma distance to p1 in the direction of p2
-     */
-    Node expand(Node p1, Node p2, std::vector<visualization_msgs::Marker> obsVec, int frameid) {
-        //calculate the slope
-        float m, nume, denom;
-        if (p1.point.x != p2.point.x) {
-            nume = (p2.point.y - p1.point.y);
-            denom = (p2.point.x - p1.point.x);
-            m = nume / denom;
-        }
-        float theta = atan(m);
-        if (theta < 0) {
-            if (denom < 0) {
-                theta = theta + M_PI;
-            } else {
-                theta = theta + 2 * M_PI;
-            }
-        } else {
-            if ((nume < 0) && (denom < 0)) {
-                theta = theta + M_PI;
-            }
-        }
-        float sin_theta = sin(theta);
-        float cos_theta = cos(theta);
-
-        //calculate P
-        Node p;
-        p.point.y = sigma * sin_theta + p1.point.y;
-        p.point.x = sigma * cos_theta + p1.point.x;
-        p.point.z = 0;
-        p.id = frameid;
-
-        // calculate if the point is within an obstacle
-        if (!intersectsObs(p1.point, p.point, obsVec) && isWithinWorld(p.point)) {
-            std::vector<Node>::iterator it = parentList.begin();
-            it = parentList.insert(it, p1);
-
-            p.parentId = p1.id;
-            p1.children.push_back(p); //children of init is not in the nodeslist
-
-            nodesList.push_back(p);
-            return p;
-        }
-        return p1;
     }
 
     bool isWithinWorld(geometry_msgs::Point p) {
@@ -155,6 +108,14 @@ public:
             bool right = lineIntersect(x1, y1, x2, y2, obs_xr, obs_yb, obs_xr, obs_yt);
             //top intersect
             bool top = lineIntersect(x1, y1, x2, y2, obs_xl, obs_yt, obs_xr, obs_yt);
+
+            if ((x1 > obs_xl &&  x1 < obs_xr) && (y1 > obs_yb &&  y1 < obs_yt)) {
+                return true;
+            }
+
+            if ((x2 > obs_xl &&  x2 < obs_xr) && (y2 > obs_yb &&  y2 < obs_yt)) {
+                return true;
+            }
 
             if (bottom || left || right || top) {
                 return true;
@@ -192,5 +153,5 @@ private:
     int y_max;
     int y_min;
     std::vector<Node> nodesList;
-    std::vector<Node> parentList;
+    std::map<int, Node> nodeMap;
 };

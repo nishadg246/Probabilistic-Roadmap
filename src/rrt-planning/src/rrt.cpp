@@ -21,6 +21,8 @@ void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publis
 
 bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point);
 
+void computeNeighborGraph(ros::Publisher marker_pub, int frameid);
+
 Node init, goal;
 static RRT rrt = initRRT();
 static float goal_bias = 0.5;
@@ -45,62 +47,90 @@ int main(int argc, char **argv) {
     ros::Rate loop_rate(20);
     int frame_count = 0;
 
+    populateRviz(marker_pub);
+    rrt.generateRandomPoints(obsVec);
+    rrt.computeNeighborGraph(obsVec);
+
+    // std::set<Node> nodes(rrt.getNodesList().begin(), rrt.getNodesList().end());
+
+
+    bool first =true;
     while (ros::ok()) {
         ROS_INFO("Frame: %d", frame_count);
         populateRviz(marker_pub);
 
-        if (!success) {
-            Node next_node = runRRT(marker_pub, frame_count);
-            geometry_msgs::Point next_point = next_node.point;
+        if (!first)
+        {
+            int dist[32]; 
 
-            if ((rrt.getEuclideanDistance(next_point, goal.point) <= 1) && frame_count > 2) {
-                addEdge(next_point, goal.point, marker_pub, false);
-                next_node.children.push_back(goal);
-                goal.parentId = next_node.id;
-                success = true;
+            bool sptSet[32];
+         
+            int parent[32];
+         
+            // Initialize all distances as 
+            // INFINITE and stpSet[] as false
+            for (int i = 0; i < V; i++)
+            {
+                parent[30] = -1;
+                dist[i] = INT_MAX;
+                sptSet[i] = false;
             }
+
+            dist[src] = 0;
+ 
+            // Find shortest path
+            // for all vertices
+            for (int count = 0; count < V - 1; count++)
+            {
+                // Pick the minimum distance
+                // vertex from the set of
+                // vertices not yet processed. 
+                // u is always equal to src
+                // in first iteration.
+                int u = minDistance(dist, sptSet);
+         
+                // Mark the picked vertex 
+                // as processed
+                sptSet[u] = true;
+         
+                // Update dist value of the 
+                // adjacent vertices of the
+                // picked vertex.
+                for (int v = 0; v < V; v++)
+         
+                    // Update dist[v] only if is
+                    // not in sptSet, there is
+                    // an edge from u to v, and 
+                    // total weight of path from
+                    // src to v through u is smaller
+                    // than current value of
+                    // dist[v]
+                    if (!sptSet[v] && graph[u][v] &&
+                        dist[u] + graph[u][v] < dist[v])
+                    {
+                        parent[v] = u;
+                        dist[v] = dist[u] + graph[u][v];
+                    } 
+            }
+
+
         }
+        if (first)
+        {
 
-        if (success) {
-            std::vector<Node> pathNodes;
-            std::vector<Node> allNodes = rrt.getNodesList();
-
-            pathNodes.push_back(goal);
-            int tempParentId = goal.parentId;
-            while (tempParentId != init.parentId) {
-                for (int i = allNodes.size() - 1; i >= 0; i--) {
-                    Node tempNode = allNodes[i];
-                    if ((tempNode.id) == tempParentId) {
-                        pathNodes.push_back(tempNode);
-                        tempParentId = tempNode.parentId;
-                    }
+            std::vector<Node> nodelist = rrt.getNodesList();
+            for (Node i: nodelist)
+            {
+                ROS_INFO("neighbors: %d", (int)i.neighbors.size());
+                for (Node j: i.neighbors)
+                {
+                    addEdge(i.point, j.point, marker_pub, true);
                 }
-            }
 
-            std::cout << "\n\nPath retrieved!! \n\n";
-
-            Node next;
-            Node curr;
-            for (int i = pathNodes.size() - 2; i >= 0; i--) {
-                curr = pathNodes[i];
-                next = pathNodes[i + 1];
-                drawFinalPath(curr.point, next.point, marker_pub);
             }
-
-            if (!pn_index_initialized) {
-                path_node_index = pathNodes.size();
-                pn_index_initialized = true;
-            }
-            bool isMoved = false;
-            if (frame_count % 3 == 0) {
-                geometry_msgs::Point next_pose = pathNodes[--path_node_index].point;
-
-                isMoved = moveRobot(marker_pub, next_pose);
-            }
-            if (isMoved) {
-                return 0;
-            }
+            first =false;
         }
+
 
         while (marker_pub.getNumSubscribers() < 1) {
             if (!ros::ok()) {
@@ -119,103 +149,15 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point next_pose) {
-
-    static visualization_msgs::Marker rob;
-    rob.type = visualization_msgs::Marker::CUBE;
-
-
-    rob.header.frame_id = "map";
-    rob.header.stamp = ros::Time::now();
-    rob.ns = "rob";
-    rob.id = 0;
-    rob.action = visualization_msgs::Marker::ADD;
-    rob.lifetime = ros::Duration();
-
-    rob.scale.x = 0.5;
-    rob.scale.y = 1;
-    rob.scale.z = 0.25;
-    rob.pose.orientation.w = 1;
-    rob.pose.orientation.x = rob.pose.orientation.y = rob.pose.orientation.z = 0;
-    rob.color.r = 1.0f;
-    rob.color.g = 0.5f;
-    rob.color.b = 0.5f;
-    rob.color.a = 1.0;
-
-    //calculate m to change the orientation of the robot
-    float m = (next_pose.y - rob.pose.position.y) / (next_pose.x - rob.pose.position.x);
-
-    rob.pose.orientation.z = atan(m) + M_PI / 2;
-    rob.pose.position = next_pose;
-
-    marker_pub.publish(rob);
-
-    if ((rob.pose.position.x == goal.point.x) && (rob.pose.position.y == goal.point.y)) {
-        marker_pub.publish(rob);
-        return true;
-    }
-
-    return false;
-}
-
 RRT initRRT() {
     init.point.x = init_x;
     init.point.y = init_y;
-    init.id = -1;
-    init.parentId = -2;
+    init.id = 30;
     goal.point.x = goal_x;
     goal.point.y = goal_y;
-    goal.id = 10000;
+    goal.id = 31;
     RRT rrt(init, goal, sigma, 20, 0, 20, 0);
     return rrt;
-}
-
-
-Node runRRT(ros::Publisher marker_pub, int frameid) {
-    geometry_msgs::Point rand_point = rrt.getRandomConfig();
-    geometry_msgs::Point tempP;
-    tempP.x = 0;
-    tempP.y = 0;
-    Node rand_node(tempP);
-    Node next_node(tempP);
-    Node nearest_node = rrt.getNearestNode(rand_point);
-
-    //decide whether to extend toward the goal or a random point
-    double r = rand() / (double) RAND_MAX;
-    if (r < goal_bias) {
-        next_node = rrt.expand(nearest_node, goal, obsVec, frameid);
-    } else {
-        rand_node.point = rand_point;
-        next_node = rrt.expand(nearest_node, rand_node, obsVec, frameid);
-    }
-
-    if ((next_node.point.x != nearest_node.point.x) && (next_node.point.y != nearest_node.point.y)) {
-        std::cout << "Rand_config: \n" << rand_point << "nearest_node: \n" << nearest_node.point << "next_node: \n"
-                  << (next_node).point << "\n\n";
-        addEdge(nearest_node.point, (next_node).point, marker_pub, false);
-    }
-    return next_node;
-}
-
-void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub) {
-    static visualization_msgs::Marker edge;
-    edge.type = visualization_msgs::Marker::LINE_LIST;
-    edge.header.frame_id = "map";
-    edge.header.stamp = ros::Time::now();
-    edge.ns = "finalPath";
-    edge.id = 4;
-    edge.action = visualization_msgs::Marker::ADD;
-    edge.pose.orientation.w = 1;
-
-    edge.scale.x = 0.04;
-
-    edge.color.g = edge.color.r = 1;
-    edge.color.a = 1.0;
-
-    edge.points.push_back(p1);
-    edge.points.push_back(p2);
-
-    marker_pub.publish(edge);
 }
 
 void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub, bool isFinal) {
@@ -274,7 +216,6 @@ void populateRviz(ros::Publisher marker_pub) {
     marker_pub.publish(v_end);
 
     populateObstacles(marker_pub);
-
 };
 
 void populateObstacles(ros::Publisher marker_pub) {
