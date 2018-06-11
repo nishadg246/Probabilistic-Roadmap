@@ -52,84 +52,10 @@ int main(int argc, char **argv) {
     rrt.computeNeighborGraph(obsVec);
 
     // std::set<Node> nodes(rrt.getNodesList().begin(), rrt.getNodesList().end());
-
-
     bool first =true;
     while (ros::ok()) {
         ROS_INFO("Frame: %d", frame_count);
         populateRviz(marker_pub);
-
-        if (!first)
-        {
-            int dist[32]; 
-
-            bool sptSet[32];
-         
-            int parent[32];
-         
-            // Initialize all distances as 
-            // INFINITE and stpSet[] as false
-            for (int i = 0; i < V; i++)
-            {
-                parent[30] = -1;
-                dist[i] = INT_MAX;
-                sptSet[i] = false;
-            }
-
-            dist[src] = 0;
- 
-            // Find shortest path
-            // for all vertices
-            for (int count = 0; count < V - 1; count++)
-            {
-                // Pick the minimum distance
-                // vertex from the set of
-                // vertices not yet processed. 
-                // u is always equal to src
-                // in first iteration.
-                int u = minDistance(dist, sptSet);
-         
-                // Mark the picked vertex 
-                // as processed
-                sptSet[u] = true;
-         
-                // Update dist value of the 
-                // adjacent vertices of the
-                // picked vertex.
-                for (int v = 0; v < V; v++)
-         
-                    // Update dist[v] only if is
-                    // not in sptSet, there is
-                    // an edge from u to v, and 
-                    // total weight of path from
-                    // src to v through u is smaller
-                    // than current value of
-                    // dist[v]
-                    if (!sptSet[v] && graph[u][v] &&
-                        dist[u] + graph[u][v] < dist[v])
-                    {
-                        parent[v] = u;
-                        dist[v] = dist[u] + graph[u][v];
-                    } 
-            }
-
-
-        }
-        if (first)
-        {
-
-            std::vector<Node> nodelist = rrt.getNodesList();
-            for (Node i: nodelist)
-            {
-                ROS_INFO("neighbors: %d", (int)i.neighbors.size());
-                for (Node j: i.neighbors)
-                {
-                    addEdge(i.point, j.point, marker_pub, true);
-                }
-
-            }
-            first =false;
-        }
 
 
         while (marker_pub.getNumSubscribers() < 1) {
@@ -139,6 +65,104 @@ int main(int argc, char **argv) {
             ROS_WARN_ONCE("Please run Rviz in another terminal.");
             sleep(1);
         }
+
+        if (first){
+            auto nodes = rrt.getNodes();
+            for (auto& i: nodes)
+            {   
+                ROS_INFO("neighbors: %d ", (int)i.neighbors.size());
+                for (auto& j: i.neighbors)
+                {
+                    // Node& j = p2.second;
+                    ROS_INFO("j: %d ", (int)j->point.x);
+                    addEdge(i.point, j->point, marker_pub, false);
+                }
+            }
+            first =false;            
+        }
+
+        if (frame_count > 10)
+        {
+            float dist[32]; 
+
+            bool vset[32];
+         
+            int prev[32];
+         
+            // Initialize all distances as 
+            // INFINITE and stpSet[] as false
+            for (int i = 0; i < 32; i++)
+            {
+                prev[i] = -1;
+                dist[i] = 10000.0;
+                vset[i] = true;
+            }
+
+            dist[30] = 0;
+ 
+            while (true)
+            {
+                int sum = 0;
+                for(auto& num : vset)
+                    sum += num;
+                ROS_INFO("sum: %d", sum);
+                if (sum == 0){
+                    break;
+                }
+
+                float low = 10000.0;
+                int u = -1;
+                for (int i = 0; i < 32; i++)
+                {
+                    if (vset[i]){
+                        if (u == -1 || dist[i] < low){
+                            low = dist[i];
+                            u = i;
+                        }
+                    }
+                }
+                ROS_INFO("min: %d", u);
+                vset[u] = false;
+
+                for(Node* v: rrt.getById(u).neighbors)
+                {
+                    auto alt = dist[u] + rrt.getEuclideanDistance(rrt.getById(u).point, v->point);
+                    ROS_INFO("alt: %f", alt);
+                    ROS_INFO("id: %d", v->id);
+                    ROS_INFO("x: %d", (int)v->point.x);
+                    ROS_INFO("y: %d", (int)v->point.y);
+                    ROS_INFO("z: %d", (int)v->point.z);
+                    ROS_INFO("dist: %f", dist[v->id]);
+
+                    if (alt < dist[v->id])
+                    {
+                        dist[v->id] =  alt;
+                        prev[v->id] = u;
+                    }
+                }
+            }
+            int node = 31;
+            while(true)
+            {
+                if (node==-1){
+                    break;
+                }
+                if (prev[node]!=-1){
+                    drawFinalPath(rrt.getById(node).point, rrt.getById(prev[node]).point, marker_pub);
+                }
+                ROS_INFO("path: %d", node);
+                node = prev[node];
+                
+            }
+
+            for (int i = 0; i < 32; i++)
+            {
+                ROS_INFO("prevs: %d %d", i, prev[i]);
+            }
+
+
+        }
+
 
         //iterate ROS
         ros::spinOnce();
@@ -184,6 +208,28 @@ void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher ma
 
     marker_pub.publish(edge);
 }
+
+void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub) {
+    static visualization_msgs::Marker edge;
+    edge.type = visualization_msgs::Marker::LINE_LIST;
+    edge.header.frame_id = "map";
+    edge.header.stamp = ros::Time::now();
+    edge.ns = "finalPath";
+    edge.id = 4;
+    edge.action = visualization_msgs::Marker::ADD;
+    edge.pose.orientation.w = 1;
+
+    edge.scale.x = 0.04;
+
+    edge.color.g = edge.color.r = 1;
+    edge.color.a = 1.0;
+
+    edge.points.push_back(p1);
+    edge.points.push_back(p2);
+
+    marker_pub.publish(edge);
+}
+
 
 void populateRviz(ros::Publisher marker_pub) {
     visualization_msgs::Marker v_start, v_end;

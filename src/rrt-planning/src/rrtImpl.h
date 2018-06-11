@@ -22,7 +22,7 @@ public:
 
     int id;
     geometry_msgs::Point point;
-    std::vector<Node> neighbors;
+    std::vector<Node*> neighbors;
 };
 
 class RRT {
@@ -31,11 +31,8 @@ public:
                                                                                          sigma(sigma), x_max(x_max),
                                                                                          x_min(x_min), y_max(y_max),
                                                                                          y_min(y_min) {
-        nodesList.reserve(1000);
-        nodesList.push_back(init);
-        nodeMap[init.id] = init;
-        nodesList.push_back(goal);
-        nodeMap[goal.id] = goal;
+        nodes.push_back(init);
+        nodes.push_back(goal);
     }
 
     void generateRandomPoints(std::vector<visualization_msgs::Marker> obsVec) {
@@ -55,8 +52,7 @@ public:
             p.id = total;
 
             if (!intersectsObs(p.point, p.point, obsVec) && isWithinWorld(p.point)) {
-                nodesList.push_back(p);
-                nodeMap[p.id] = p;
+                nodes.push_back(p);
                 total++;
             }
         }
@@ -64,13 +60,13 @@ public:
 
     void computeNeighborGraph(std::vector<visualization_msgs::Marker> obsVec) {
         // decide whether to extend toward the goal or a random point
-        ROS_INFO("Size: %d", (int)nodesList.size());
-        for (Node& i: nodesList)
-        {
-            for (Node& j: nodesList)
+        ROS_INFO("Size: %d", (int)nodes.size());
+        for (auto& i: nodes)
+        {   
+            for (auto& j: nodes)
             {
-                if (!intersectsObs(i.point, j.point, obsVec)) {
-                    i.neighbors.push_back(j);
+                if (i.id!=j.id && !intersectsObs(i.point, j.point, obsVec)) {
+                    i.neighbors.push_back(&j);
                 }
             }
         }
@@ -141,8 +137,17 @@ public:
         return false;
     }
 
-    std::vector<Node> getNodesList() {
-        return this->nodesList;
+    std::vector<Node> getNodes() {
+        return this->nodes;
+    }
+
+    Node getById(int id) {
+        for (auto& i: nodes)
+        {   
+            if (i.id == id){
+                return i;
+            }
+        }
     }
 
 private:
@@ -152,6 +157,5 @@ private:
     int x_min;
     int y_max;
     int y_min;
-    std::vector<Node> nodesList;
-    std::map<int, Node> nodeMap;
+    std::vector<Node> nodes;
 };
