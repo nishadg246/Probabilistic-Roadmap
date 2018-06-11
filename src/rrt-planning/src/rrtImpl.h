@@ -37,7 +37,7 @@ public:
 
     void generateRandomPoints(std::vector<visualization_msgs::Marker> obsVec) {
         int total = 0;
-        while(total < 30)
+        while(total < 50)
         {
             geometry_msgs::Point point;
 
@@ -49,7 +49,7 @@ public:
             p.point.y = distr(generator);
             p.point.x = distr(generator);
             p.point.z = 0;
-            p.id = total;
+            p.id = total+2;
 
             if (!intersectsObs(p.point, p.point, obsVec) && isWithinWorld(p.point)) {
                 nodes.push_back(p);
@@ -63,12 +63,24 @@ public:
         ROS_INFO("Size: %d", (int)nodes.size());
         for (auto& i: nodes)
         {   
+            std::map<float,Node*> distanceMap;
             for (auto& j: nodes)
             {
                 if (i.id!=j.id && !intersectsObs(i.point, j.point, obsVec)) {
-                    i.neighbors.push_back(&j);
+                    distanceMap[getEuclideanDistance(i.point,j.point)] = &j;
                 }
             }
+
+            int count = 0;
+            for(auto iter: distanceMap)
+            {
+                if (count >=5) {
+                    break;
+                }
+                i.neighbors.push_back(iter.second);
+                count++;
+            }
+
         }
     }
 

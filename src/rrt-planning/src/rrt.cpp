@@ -83,36 +83,36 @@ int main(int argc, char **argv) {
 
         if (frame_count > 10)
         {
-            float dist[32]; 
+            float dist[52]; 
 
-            bool vset[32];
+            bool vset[52];
          
-            int prev[32];
+            int prev[52];
          
             // Initialize all distances as 
             // INFINITE and stpSet[] as false
-            for (int i = 0; i < 32; i++)
+            for (int i = 0; i < 52; i++)
             {
                 prev[i] = -1;
                 dist[i] = 10000.0;
                 vset[i] = true;
             }
 
-            dist[30] = 0;
+            dist[0] = 0;
  
             while (true)
             {
                 int sum = 0;
                 for(auto& num : vset)
                     sum += num;
-                ROS_INFO("sum: %d", sum);
+                // ROS_INFO("sum: %d", sum);
                 if (sum == 0){
                     break;
                 }
 
                 float low = 10000.0;
                 int u = -1;
-                for (int i = 0; i < 32; i++)
+                for (int i = 0; i < 52; i++)
                 {
                     if (vset[i]){
                         if (u == -1 || dist[i] < low){
@@ -121,18 +121,18 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
-                ROS_INFO("min: %d", u);
+                // ROS_INFO("min: %d", u);
                 vset[u] = false;
 
                 for(Node* v: rrt.getById(u).neighbors)
                 {
                     auto alt = dist[u] + rrt.getEuclideanDistance(rrt.getById(u).point, v->point);
-                    ROS_INFO("alt: %f", alt);
-                    ROS_INFO("id: %d", v->id);
-                    ROS_INFO("x: %d", (int)v->point.x);
-                    ROS_INFO("y: %d", (int)v->point.y);
-                    ROS_INFO("z: %d", (int)v->point.z);
-                    ROS_INFO("dist: %f", dist[v->id]);
+                    // ROS_INFO("alt: %f", alt);
+                    // ROS_INFO("id: %d", v->id);
+                    // ROS_INFO("x: %d", (int)v->point.x);
+                    // ROS_INFO("y: %d", (int)v->point.y);
+                    // ROS_INFO("z: %d", (int)v->point.z);
+                    // ROS_INFO("dist: %f", dist[v->id]);
 
                     if (alt < dist[v->id])
                     {
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
                     }
                 }
             }
-            int node = 31;
+            int node = 1;
             while(true)
             {
                 if (node==-1){
@@ -154,13 +154,6 @@ int main(int argc, char **argv) {
                 node = prev[node];
                 
             }
-
-            for (int i = 0; i < 32; i++)
-            {
-                ROS_INFO("prevs: %d %d", i, prev[i]);
-            }
-
-
         }
 
 
@@ -176,10 +169,10 @@ int main(int argc, char **argv) {
 RRT initRRT() {
     init.point.x = init_x;
     init.point.y = init_y;
-    init.id = 30;
+    init.id = 0;
     goal.point.x = goal_x;
     goal.point.y = goal_y;
-    goal.id = 31;
+    goal.id = 1;
     RRT rrt(init, goal, sigma, 20, 0, 20, 0);
     return rrt;
 }
