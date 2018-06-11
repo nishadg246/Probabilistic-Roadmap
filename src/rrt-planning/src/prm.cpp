@@ -5,7 +5,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include <visualization_msgs/Marker.h>
-#include "rrtImpl.h"
+#include "prmImpl.h"
 
 RRT initRRT();
 
@@ -34,6 +34,8 @@ static int init_y = 0;
 
 static int goal_x = 18;
 static int goal_y = 18;
+
+static int numNodes = 200;
 
 static std::vector<visualization_msgs::Marker> obsVec;
 static int path_node_index;
@@ -83,15 +85,15 @@ int main(int argc, char **argv) {
 
         if (frame_count > 10)
         {
-            float dist[52]; 
+            float dist[numNodes+2]; 
 
-            bool vset[52];
+            bool vset[numNodes+2];
          
-            int prev[52];
+            int prev[numNodes+2];
          
             // Initialize all distances as 
             // INFINITE and stpSet[] as false
-            for (int i = 0; i < 52; i++)
+            for (int i = 0; i < numNodes+2; i++)
             {
                 prev[i] = -1;
                 dist[i] = 10000.0;
@@ -112,7 +114,7 @@ int main(int argc, char **argv) {
 
                 float low = 10000.0;
                 int u = -1;
-                for (int i = 0; i < 52; i++)
+                for (int i = 0; i < numNodes+2; i++)
                 {
                     if (vset[i]){
                         if (u == -1 || dist[i] < low){
@@ -173,7 +175,7 @@ RRT initRRT() {
     goal.point.x = goal_x;
     goal.point.y = goal_y;
     goal.id = 1;
-    RRT rrt(init, goal, sigma, 20, 0, 20, 0);
+    RRT rrt(init, goal, sigma, 20, 0, 20, 0, numNodes);
     return rrt;
 }
 

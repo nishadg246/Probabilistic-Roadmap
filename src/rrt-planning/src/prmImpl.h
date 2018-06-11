@@ -27,17 +27,17 @@ public:
 
 class RRT {
 public:
-    RRT(Node init, Node goal, float sigma, int x_max, int x_min, int y_max, int y_min) : _init(init), _goal(goal),
+    RRT(Node init, Node goal, float sigma, int x_max, int x_min, int y_max, int y_min, int numNodes) : _init(init), _goal(goal),
                                                                                          sigma(sigma), x_max(x_max),
                                                                                          x_min(x_min), y_max(y_max),
-                                                                                         y_min(y_min) {
+                                                                                         y_min(y_min), numNodes(numNodes) {
         nodes.push_back(init);
         nodes.push_back(goal);
     }
 
     void generateRandomPoints(std::vector<visualization_msgs::Marker> obsVec) {
         int total = 0;
-        while(total < 50)
+        while(total < numNodes)
         {
             geometry_msgs::Point point;
 
@@ -74,7 +74,7 @@ public:
             int count = 0;
             for(auto iter: distanceMap)
             {
-                if (count >=5) {
+                if (count >=10) {
                     break;
                 }
                 i.neighbors.push_back(iter.second);
@@ -169,5 +169,6 @@ private:
     int x_min;
     int y_max;
     int y_min;
+    int numNodes;
     std::vector<Node> nodes;
 };

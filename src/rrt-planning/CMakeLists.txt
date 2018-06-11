@@ -199,6 +199,6 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(rrt src/rrt.cpp src/rrtImpl.h)
-target_link_libraries(rrt ${catkin_LIBRARIES})
-add_dependencies(rrt ros_rrt_generate_messages_cpp)
+add_executable(prm src/prm.cpp src/prmImpl.h)
+target_link_libraries(prm ${catkin_LIBRARIES})
+add_dependencies(prm ros_rrt_generate_messages_cpp)
