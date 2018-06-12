@@ -7,8 +7,6 @@
 #include <visualization_msgs/Marker.h>
 #include "prmImpl.h"
 
-RRT initRRT();
-
 Node runRRT(ros::Publisher, int);
 
 void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher, bool);
@@ -19,23 +17,11 @@ void populateObstacles(ros::Publisher marker_pub);
 
 void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub);
 
-bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point);
-
 void computeNeighborGraph(ros::Publisher marker_pub, int frameid);
 
-Node init, goal;
-static RRT rrt = initRRT();
-static float goal_bias = 0.5;
-static float sigma = 0.5;
-static bool success = false;
-
-static int init_x = 0;
-static int init_y = 0;
-
-static int goal_x = 18;
-static int goal_y = 18;
-
 static int numNodes = 200;
+static RRT rrt = RRT(20, 0, 20, 0, numNodes);
+
 
 static std::vector<visualization_msgs::Marker> obsVec;
 static int path_node_index;
@@ -53,7 +39,6 @@ int main(int argc, char **argv) {
     rrt.generateRandomPoints(obsVec);
     rrt.computeNeighborGraph(obsVec);
 
-    // std::set<Node> nodes(rrt.getNodesList().begin(), rrt.getNodesList().end());
     bool first =true;
     while (ros::ok()) {
         ROS_INFO("Frame: %d", frame_count);
@@ -85,76 +70,9 @@ int main(int argc, char **argv) {
 
         if (frame_count > 10)
         {
-            float dist[numNodes+2]; 
-
-            bool vset[numNodes+2];
-         
-            int prev[numNodes+2];
-         
-            // Initialize all distances as 
-            // INFINITE and stpSet[] as false
-            for (int i = 0; i < numNodes+2; i++)
-            {
-                prev[i] = -1;
-                dist[i] = 10000.0;
-                vset[i] = true;
-            }
-
-            dist[0] = 0;
- 
-            while (true)
-            {
-                int sum = 0;
-                for(auto& num : vset)
-                    sum += num;
-                // ROS_INFO("sum: %d", sum);
-                if (sum == 0){
-                    break;
-                }
-
-                float low = 10000.0;
-                int u = -1;
-                for (int i = 0; i < numNodes+2; i++)
-                {
-                    if (vset[i]){
-                        if (u == -1 || dist[i] < low){
-                            low = dist[i];
-                            u = i;
-                        }
-                    }
-                }
-                // ROS_INFO("min: %d", u);
-                vset[u] = false;
-
-                for(Node* v: rrt.getById(u).neighbors)
-                {
-                    auto alt = dist[u] + rrt.getEuclideanDistance(rrt.getById(u).point, v->point);
-                    // ROS_INFO("alt: %f", alt);
-                    // ROS_INFO("id: %d", v->id);
-                    // ROS_INFO("x: %d", (int)v->point.x);
-                    // ROS_INFO("y: %d", (int)v->point.y);
-                    // ROS_INFO("z: %d", (int)v->point.z);
-                    // ROS_INFO("dist: %f", dist[v->id]);
-
-                    if (alt < dist[v->id])
-                    {
-                        dist[v->id] =  alt;
-                        prev[v->id] = u;
-                    }
-                }
-            }
-            int node = 1;
-            while(true)
-            {
-                if (node==-1){
-                    break;
-                }
-                if (prev[node]!=-1){
-                    drawFinalPath(rrt.getById(node).point, rrt.getById(prev[node]).point, marker_pub);
-                }
-                ROS_INFO("path: %d", node);
-                node = prev[node];
-                
+            auto path = rrt.solveShortestPath();
+            for (int i=0; i< path.size()-1;i++) {
+                drawFinalPath(rrt.getById(path[i]).point, rrt.getById(path[i+1]).point, marker_pub);
             }
         }
 
@@ -166,17 +84,6 @@ int main(int argc, char **argv) {
     }
 
     return 0;
-}
-
-RRT initRRT() {
-    init.point.x = init_x;
-    init.point.y = init_y;
-    init.id = 0;
-    goal.point.x = goal_x;
-    goal.point.y = goal_y;
-    goal.id = 1;
-    RRT rrt(init, goal, sigma, 20, 0, 20, 0, numNodes);
-    return rrt;
 }
 
 void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub, bool isFinal) {
@@ -245,10 +152,10 @@ void populateRviz(ros::Publisher marker_pub) {
     v_end.color.r = 1.0f;
 
     geometry_msgs::Point ps, pe;
-    ps.x = init_x;
-    ps.y = init_y;
-    pe.x = goal_x;
-    pe.y = goal_y;
+    ps.x = 0;
+    ps.y = 0;
+    pe.x = 18;
+    pe.y = 18;
     v_start.points.push_back(ps);
     v_end.points.push_back(pe);
 

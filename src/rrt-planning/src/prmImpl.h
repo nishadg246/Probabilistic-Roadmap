@@ -13,6 +13,7 @@
 #include <geometry_msgs/Point.h>
 #include <eigen3/Eigen/Dense>
 #include <random>
+#include <Python.h>
 
 struct Node {
 public:
@@ -27,10 +28,17 @@ public:
 
 class RRT {
 public:
-    RRT(Node init, Node goal, float sigma, int x_max, int x_min, int y_max, int y_min, int numNodes) : _init(init), _goal(goal),
-                                                                                         sigma(sigma), x_max(x_max),
+    RRT(int x_max, int x_min, int y_max, int y_min, int numNodes) : x_max(x_max),
                                                                                          x_min(x_min), y_max(y_max),
                                                                                          y_min(y_min), numNodes(numNodes) {
+        
+        Node init, goal;
+        init.point.x = 0;
+        init.point.y = 0;
+        init.id = 0;
+        goal.point.x = 18;
+        goal.point.y = 18;
+        goal.id = 1;
         nodes.push_back(init);
         nodes.push_back(goal);
     }
@@ -82,6 +90,72 @@ public:
             }
 
         }
+    }
+
+    std::vector<int> solveShortestPath()
+    {
+        float dist[numNodes+2]; 
+        bool vset[numNodes+2];
+        int prev[numNodes+2];
+     
+        // Initialize all distances as 
+        // INFINITE and stpSet[] as false
+        for (int i = 0; i < numNodes+2; i++)
+        {
+            prev[i] = -1;
+            dist[i] = 10000.0;
+            vset[i] = true;
+        }
+
+        dist[0] = 0;
+
+        while (true)
+        {
+            int sum = 0;
+            for(auto& num : vset)
+                sum += num;
+            // ROS_INFO("sum: %d", sum);
+            if (sum == 0){
+                break;
+            }
+
+            float low = 10000.0;
+            int u = -1;
+            for (int i = 0; i < numNodes+2; i++)
+            {
+                if (vset[i]){
+                    if (u == -1 || dist[i] < low){
+                        low = dist[i];
+                        u = i;
+                    }
+                }
+            }
+            // ROS_INFO("min: %d", u);
+            vset[u] = false;
+
+            for(Node* v: getById(u).neighbors)
+            {
+                auto alt = dist[u] + getEuclideanDistance(getById(u).point, v->point);
+
+                if (alt < dist[v->id])
+                {
+                    dist[v->id] =  alt;
+                    prev[v->id] = u;
+                }
+            }
+        }
+        int node = 1;
+        std::vector<int> path;
+        while(true)
+        {
+            if (node==-1){
+                break;
+            }
+            path.push_back(node);
+            node = prev[node];
+            
+        }
+        return path;
     }
 
     float getEuclideanDistance(geometry_msgs::Point p1, geometry_msgs::Point p2) {
@@ -163,8 +237,6 @@ public:
     }
 
 private:
-    Node _init, _goal;
-    float sigma;
     int x_max;
     int x_min;
     int y_max;
@@ -172,3 +244,11 @@ private:
     int numNodes;
     std::vector<Node> nodes;
 };
+
+// BOOST_PYTHON_MODULE(rrt)
+// {
+//     class_<RRT>("RRT")
+//         // .def("generateRandomPoints", &World::generateRandomPoints)
+//         // .def("computeNeighborGraph", &World::computeNeighborGraph)
+//     ;
+// }
