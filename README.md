@@ -1,15 +1,12 @@
-# rrt-ros
-Implementation of a rapidly expanding random trees algorithm for ROS (Robot Operating System).
+# Probabilistic Roadmap Algorithm
+
+This was adapted from visualization of the RRT algorithm
+
 
 ## Prerequisites
 You need to have installed [ROS - Robot Operating System](http://www.ros.org/) in your system.
 
 ## Running and visualization
-Clone the rrt-ros repository in to your preferable location. Then compile it using catkin as follows.
-
-`git clone https://github.com/Malintha/rrt-ros` 
-
-`cd rrt-ros`
 
 `catkin_make`
 
@@ -23,12 +20,21 @@ Run roscore in another terminal.
 
 Then run rrt node as follows.
 
-`rosrun rrt-planning rrt`
+`rosrun rrt-planning prm`
 
 You will be now promped to run rviz for visualization. Then run Rviz in another terminal.
 
-`rosrun rviz rviz`
+`rviz`
 
-Add a marker listener to the world and enjoy the simulation!
+You may also need to use:
 
-![screenshot from 2017-10-03 14-40-21](https://user-images.githubusercontent.com/3253761/31142612-cf1bb6a2-a848-11e7-8dbe-23b005accf1e.png)
+`rosrun tf static_transform_publisher 0 0 0 0 0 0 1 map base_link 10`
+
+Add a marker listener to rviz!
+
+
+There is also a python interface that implements exactly the code in `prmImpl.h`.
+
+The parameters you may adjust are `numNodes` which controls the number of nodes to sample to create the PRM, the number of neighbors to keep in the PRM (k closest nodes).
+
+Below are some examples of runs varying these parameters. The red represents the contstucted roadmap while the yellow is the shortest path from start to goal on this roadmap.
