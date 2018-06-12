@@ -1,6 +1,6 @@
 # Probabilistic Roadmap Algorithm
 
-This was adapted from visualization of the RRT algorithm
+This was adapted from visualization of the RRT algorithm [here](https://github.com/Malintha/rrt-ros)
 
 
 ## Prerequisites
