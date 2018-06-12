@@ -13,7 +13,6 @@
 #include <geometry_msgs/Point.h>
 #include <eigen3/Eigen/Dense>
 #include <random>
-#include <Python.h>
 
 struct Node {
 public:
@@ -26,9 +25,9 @@ public:
     std::vector<Node*> neighbors;
 };
 
-class RRT {
+class PRM {
 public:
-    RRT(int x_max, int x_min, int y_max, int y_min, int numNodes) : x_max(x_max),
+    PRM(int x_max, int x_min, int y_max, int y_min, int numNodes) : x_max(x_max),
                                                                                          x_min(x_min), y_max(y_max),
                                                                                          y_min(y_min), numNodes(numNodes) {
         
@@ -214,10 +213,6 @@ public:
 
         // if uA and uB are between 0-1, lines are colliding
         if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1) {
-
-            float intersectionX = x1 + (uA * (x2 - x1));
-            float intersectionY = y1 + (uA * (y2 - y1));
-
             return true;
         }
         return false;
@@ -244,11 +239,3 @@ private:
     int numNodes;
     std::vector<Node> nodes;
 };
-
-// BOOST_PYTHON_MODULE(rrt)
-// {
-//     class_<RRT>("RRT")
-//         // .def("generateRandomPoints", &World::generateRandomPoints)
-//         // .def("computeNeighborGraph", &World::computeNeighborGraph)
-//     ;
-// }

@@ -7,8 +7,6 @@
 #include <visualization_msgs/Marker.h>
 #include "prmImpl.h"
 
-Node runRRT(ros::Publisher, int);
-
 void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher);
 
 void populateRviz(ros::Publisher marker_pub);
@@ -20,8 +18,7 @@ void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publis
 void computeNeighborGraph(ros::Publisher marker_pub, int frameid);
 
 static int numNodes = 200;
-static RRT rrt = RRT(20, 0, 20, 0, numNodes);
-
+static PRM prm = PRM(20, 0, 20, 0, numNodes);
 
 static std::vector<visualization_msgs::Marker> obsVec;
 static int path_node_index;
@@ -36,8 +33,8 @@ int main(int argc, char **argv) {
     int frame_count = 0;
 
     populateRviz(marker_pub);
-    rrt.generateRandomPoints(obsVec);
-    rrt.computeNeighborGraph(obsVec);
+    prm.generateRandomPoints(obsVec);
+    prm.computeNeighborGraph(obsVec);
 
     bool first =true;
     while (ros::ok()) {
@@ -55,7 +52,7 @@ int main(int argc, char **argv) {
 
         if (first){
             // Visualize PRM in Red
-            auto nodes = rrt.getNodes();
+            auto nodes = prm.getNodes();
             for (auto& i: nodes)
             {   
                 for (auto& j: i.neighbors)
@@ -69,9 +66,9 @@ int main(int argc, char **argv) {
         if (frame_count > 10)
         {
             // Plan on the PRM from start to goal and visualize in yell
-            auto path = rrt.solveShortestPath();
+            auto path = prm.solveShortestPath();
             for (int i=0; i< path.size()-1;i++) {
-                drawFinalPath(rrt.getById(path[i]).point, rrt.getById(path[i+1]).point, marker_pub);
+                drawFinalPath(prm.getById(path[i]).point, prm.getById(path[i+1]).point, marker_pub);
             }
         }
 
