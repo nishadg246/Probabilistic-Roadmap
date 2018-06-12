@@ -38,3 +38,7 @@ There is also a python interface that implements exactly the code in `prmImpl.h`
 The parameters you may adjust are `numNodes` which controls the number of nodes to sample to create the PRM, the number of neighbors to keep in the PRM (k closest nodes).
 
 Below are some examples of runs varying these parameters. The red represents the contstucted roadmap while the yellow is the shortest path from start to goal on this roadmap.
+
+![200 nodes 10 neighbors](n200k10.png)
+![50 nodes 10 neighbors](n50k10.png)
+![50 nodes 5 neighbors](n50k5.png)
