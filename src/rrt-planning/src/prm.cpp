@@ -9,7 +9,7 @@
 
 Node runRRT(ros::Publisher, int);
 
-void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher, bool);
+void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher);
 
 void populateRviz(ros::Publisher marker_pub);
 
@@ -54,15 +54,13 @@ int main(int argc, char **argv) {
         }
 
         if (first){
+            // Visualize PRM in Red
             auto nodes = rrt.getNodes();
             for (auto& i: nodes)
             {   
-                ROS_INFO("neighbors: %d ", (int)i.neighbors.size());
                 for (auto& j: i.neighbors)
                 {
-                    // Node& j = p2.second;
-                    ROS_INFO("j: %d ", (int)j->point.x);
-                    addEdge(i.point, j->point, marker_pub, false);
+                    addEdge(i.point, j->point, marker_pub);
                 }
             }
             first =false;            
@@ -70,12 +68,12 @@ int main(int argc, char **argv) {
 
         if (frame_count > 10)
         {
+            // Plan on the PRM from start to goal and visualize in yell
             auto path = rrt.solveShortestPath();
             for (int i=0; i< path.size()-1;i++) {
                 drawFinalPath(rrt.getById(path[i]).point, rrt.getById(path[i+1]).point, marker_pub);
             }
         }
-
 
         //iterate ROS
         ros::spinOnce();
@@ -86,7 +84,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub, bool isFinal) {
+void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub) {
     static visualization_msgs::Marker edge, vertex;
     vertex.type = visualization_msgs::Marker::POINTS;
     edge.type = visualization_msgs::Marker::LINE_LIST;
@@ -98,11 +96,7 @@ void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher ma
     edge.pose.orientation.w = 1;
 
     edge.scale.x = 0.02;
-    if (!isFinal) {
-        edge.color.r = 1.0;
-    } else {
-        edge.color.g = edge.color.r = 1;
-    }
+    edge.color.r = 1.0;
     edge.color.a = 1.0;
 
     edge.points.push_back(p1);
